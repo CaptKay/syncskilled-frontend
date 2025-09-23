@@ -1,11 +1,12 @@
+// src/api.js
 import axios from "axios";
 
 /* ================================
    Axios instances
    ================================ */
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
-  withCredentials: true, // send/receive httpOnly cookies
+  baseURL: import.meta.env.VITE_API_URL, // e.g. http://localhost:5000/api
+  withCredentials: true,                 // send/receive httpOnly cookies
 });
 
 // a bare client to call /auth/refresh without our interceptor recursion
@@ -15,11 +16,88 @@ const refreshApi = axios.create({
 });
 
 /* ================================
+   Refresh queue (prevents storms)
+   ================================ */
+let isRefreshing = false;
+let refreshPromise = null;
+let onUnauthenticated = null;
+
+export function setOnUnauthenticated(fn) {
+  onUnauthenticated = fn;
+}
+
+async function runRefresh() {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        // IMPORTANT: use refreshApi (no interceptors) to avoid recursion
+        await refreshApi.get("/auth/refresh");
+        return true;
+      } catch {
+        return false;
+      } finally {
+        isRefreshing = false;
+        // allow a new refresh next time
+        setTimeout(() => (refreshPromise = null), 0);
+      }
+    })();
+  }
+  return refreshPromise;
+}
+
+/* ================================
+   401 handling interceptor
+   ================================ */
+api.interceptors.response.use(
+  (res) => res,
+  async (error) => {
+    const original = error.config || {};
+    const status = error?.response?.status;
+
+    // If no response (network/CORS) or not 401 => bubble up
+    if (!status || status !== 401) {
+      return Promise.reject(error);
+    }
+
+    // Never try to refresh if the failing call WAS the refresh endpoint
+    const url = (original?.url || "").toString();
+    if (url.includes("/auth/refresh")) {
+      if (onUnauthenticated) onUnauthenticated();
+      return Promise.reject(error);
+    }
+
+    // Prevent infinite loops
+    if (original._retry) {
+      if (onUnauthenticated) onUnauthenticated();
+      return Promise.reject(error);
+    }
+    original._retry = true;
+
+    try {
+      // only one refresh at a time; others await it
+      if (!isRefreshing) isRefreshing = true;
+      const ok = await runRefresh();
+
+      if (!ok) {
+        if (onUnauthenticated) onUnauthenticated();
+        return Promise.reject(error);
+      }
+
+      // refresh ok: retry original request
+      // axios keeps method/data/headers in original config
+      return api(original);
+    } catch (error) {
+      if (onUnauthenticated) onUnauthenticated();
+      return Promise.reject(error);
+    }
+  }
+);
+
+/* ================================
    Thin wrappers (always return .data)
    ================================ */
 async function get(url, params) {
-  // IMPORTANT: pass params as { params }
-  const res = await api.get(url, { params });
+  const res = await api.get(url, { params }); // pass params correctly
   return res.data;
 }
 async function post(url, data) {
@@ -42,52 +120,51 @@ async function del(url) {
 /* ================================
    API groups (only what exists)
    ================================ */
-
-//  Auth Endpoints
 export const Auth = {
-  async register(payload) { return await post("/auth/register", payload); },
-  async login(payload)    { return await post("/auth/login", payload); },
-  async logout()          { return await post("/auth/logout"); },
-  // matches interceptor above (GET). If your server is POST, switch both places.
-  async refresh()         { return await refreshApi.get("/auth/refresh"); },
-  async me()              { return await get("/me"); },
+  async register(payload) { return post("/auth/register", payload); },
+  async login(payload)    { return post("/auth/login", payload); },
+  async logout()          { return post("/auth/logout"); },
 
-  async updateProfile(data)  { return await patch("/me", data); },
-  async changePassword(data) { return await post("/me/change-password", data); },
+  // If your backend expects POST for refresh, switch to refreshApi.post(...) here
+  async refresh()         { 
+    const res = await refreshApi.get("/auth/refresh");
+    return res.data;
+  },
 
-  async addTeach(payload) { return await post("/me/teach", payload); },
-  async removeTeach(id)   { return await del(`/me/teach/${id}`); },
+  async me()              { return get("/me"); },
 
-  async addLearn(payload) { return await post("/me/learn", payload); },
-  async removeLearn(id)   { return await del(`/me/learn/${id}`); },
+  async updateProfile(data)  { return patch("/me", data); },
+  async changePassword(data) { return post("/me/change-password", data); },
+
+  async addTeach(payload) { return post("/me/teach", payload); },
+  async removeTeach(id)   { return del(`/me/teach/${id}`); },
+
+  async addLearn(payload) { return post("/me/learn", payload); },
+  async removeLearn(id)   { return del(`/me/learn/${id}`); },
 };
 
-//  Catalog Endpoints
 export const Catalog = {
-  async categories(params)            { return await get("/categories", params); },
-  async categorySkills(idOrSlug, p)   { return await get(`/categories/${idOrSlug}/skills`, p); },
-  async skills(params)                { return await get("/skills", params); },
-  async skill(idOrSlug)               { return await get(`/skills/${idOrSlug}`); },
-  async peopleOffer(idOrSlug, params) { return await get(`/skills/${idOrSlug}/people/offer`, params); },
-  async peopleWant(idOrSlug, params)  { return await get(`/skills/${idOrSlug}/people/want`, params); },
+  async categories(params)            { return get("/categories", params); },
+  async categorySkills(idOrSlug, params)   { return get(`/categories/${idOrSlug}/skills`, params); },
+  async skills(params)                { return get("/skills", params); },
+  async skill(idOrSlug)               { return get(`/skills/${idOrSlug}`); },
+  async peopleOffer(idOrSlug, params) { return get(`/skills/${idOrSlug}/people/offer`, params); },
+  async peopleWant(idOrSlug, params)  { return get(`/skills/${idOrSlug}/people/want`, params); },
 };
 
-/* ================================
-   Post & Comments — FIXED typos
-   (keep only if backend supports these)
-   ================================ */
+/* Optional: posts/comments only if your backend supports them */
 export const Post = {
-  async createPost(data)      { return await post("/posts", data); },
-  async getAllPost()          { return await get("/posts"); },              // no params
-  async singlePost(id)        { return await get(`/posts/${id}`); },
-  async authorOfThePost(id)   { return await get(`/posts/author/${id}`); },
-  async updatePost(id, data)  { return await put(`/posts/${id}`, data); },
-  async deletePost(id)        { return await del(`/posts/${id}`); },
-  async commentsOfThePost(id) { return await get(`/comments/posts/${id}`); },
+  async createPost(data)      { return post("/posts", data); },
+  async getAllPost()          { return get("/posts"); },
+  async singlePost(id)        { return get(`/posts/${id}`); },
+  async authorOfThePost(id)   { return get(`/posts/author/${id}`); },
+  async updatePost(id, data)  { return put(`/posts/${id}`, data); },
+  async deletePost(id)        { return del(`/posts/${id}`); },
+  async commentsOfThePost(id) { return get(`/comments/posts/${id}`); },
 };
 
 export const Comments = {
-  async createComment(data)      { return await post(`/comments/create`, data); },       // FIX: path & comma
-  async updateComment(id, data)  { return await put(`/comments/update/${id}`, data); },
-  async deleteComment(id)        { return await del(`/comments/delete/${id}`); },
+  async createComment(data)      { return post(`/comments/create`, data); },
+  async updateComment(id, data)  { return put(`/comments/update/${id}`, data); },
+  async deleteComment(id)        { return del(`/comments/delete/${id}`); },
 };

@@ -1,68 +1,82 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { Auth } from "../api.js";
-import useAuthInterceptors from "../hooks/useAuthInterceptors.js";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
+import { Auth, setOnUnauthenticated } from "../api";
 
-const AuthCtx = createContext(null);
-// eslint-disable-next-line react-refresh/only-export-components
-export const useAuth = () => useContext(AuthCtx); //custom hook
+const AuthContext = createContext(null);
 
-export default function AuthProvider({ children }) {
+export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(true);
 
- // install refresh-on-401 interceptor; clear user if refresh fails
-  useAuthInterceptors(() => setUser(null));
+  // 🔹 Callback to refresh user profile
+  const refreshUser = useCallback(async () => {
+    try {
+      const data = await Auth.me();
+      setUser(data.user);
+    } catch {
+      setUser(null);
+    } finally {
+      setBooting(false);
+    }
+  }, []); // no deps, stable forever
 
- // Boot the session
-  useEffect(() => {
-    (async () => {
-      try {
-        const currUser = await Auth.me();
-        setUser(currUser.user);
-      } catch {
-          setUser(null);
-      } finally {
-        setBooting(false);
-      }
-    })();
+  // 🔹 Callbacks for auth actions
+  const login = useCallback(
+    async (payload) => {
+      await Auth.login(payload);
+      await refreshUser();
+    },
+    [refreshUser]
+  );
+
+  const register = useCallback(
+    async (payload) => {
+      await Auth.register(payload);
+      await refreshUser();
+    },
+    [refreshUser]
+  );
+
+  const logout = useCallback(async () => {
+    await Auth.logout();
+    setUser(null);
   }, []);
 
+  // 🔹 On mount: setup refresh + unauthenticated handler
+  useEffect(() => {
+    refreshUser(); // check if logged in when app loads
+    setOnUnauthenticated(() => setUser(null));
+    return () => setOnUnauthenticated(null);
+  }, [refreshUser]);
 
-  //Actions
-  //login
-  const login = async (identifier, password) => {
-    const currUser = await Auth.login({ identifier, password });
-    setUser(currUser.user);
-    return currUser
-  };
+  // 🔹 Memoize the context value
+  const value = useMemo(
+    () => ({
+      user,
+      booting,
+      login,
+      register,
+      logout,
+      refreshUser,
+    }),
+    [user, booting, login, register, logout, refreshUser]
+  );
 
-  //register
-  const register = async ({username, email, name, password}) => {
-    const newUser = await Auth.register({username, email, name, password});
-    setUser(newUser.user);
-    return newUser;
-  };
-
-  //logout
-  const logout = async () => {
-    try{await Auth.logout();}
-    finally {setUser(null)}
-  };
-
-  //Refresh Token
-  const refreshUser = async () =>{
-    const currUser = await Auth.me()
-    setUser(currUser.user)
-    return currUser
-  }
-
-const value = useMemo(
-    ()=>({user, setUser, booting, login, register, logout, refreshUser}), [user, booting]
-)
-
-return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>
-
-
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-
+// Hook for consumers
+// eslint-disable-next-line react-refresh/only-export-components
+export function useAuth() {
+  const ctx = useContext(AuthContext);
+  if (ctx === null) {
+    throw new Error("useAuth must be used within <AuthProvider>.");
+  }
+  return ctx;
+}

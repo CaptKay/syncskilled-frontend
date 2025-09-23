@@ -1,26 +1,48 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import AuthProvider, { useAuth } from "./auth/AuthContext";
-import Container from "./components/layout/Container";
-import Navbar from "./components/layout/Navbar";
-import HomePage from "./pages/HomePage";
+import { Routes, Route, Navigate, Link } from "react-router-dom";
+import ProtectedRoute from "./auth/ProtectedRoute";
+import { useAuth } from "./auth/AuthContext";
+import Homepage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import MePage from "./pages/MePage";
 
-function ProtectedRoute({ children }) {
-  const { user, booting } = useAuth();
-  if (booting) return <div className="container">Loading…</div>;
-  if (!user) return <Navigate to="/login" replace />;
-  return children;
-}
+export default function App() {
+  const { user, logout } = useAuth();
 
-function Shell() {
   return (
     <div className="page">
-      <Container>
-        <Navbar />
+      <div className="container">
+        <div className="card">
+          <div className="card-header">
+            <div className="brabd">SyncSkilled</div>
+            <div className="flex items-center gap-2">
+              <Link to="/" className="btn-outline">
+                Home
+              </Link>
+              {!user ? (
+                <>
+                  <Link to="/login" className="btn-outline">
+                    Login
+                  </Link>
+                  <Link to="/register" className="btn-outline">
+                    Register
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link to="/me" className="btn-outline">
+                    Profile
+                  </Link>
+                  <button className="btn-primary" onClick={logout}>
+                    Logout
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
         <Routes>
-          <Route path="/" element={<HomePage />} />
+          <Route path="/" element={<Homepage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route
@@ -33,17 +55,7 @@ function Shell() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Container>
+      </div>
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Shell />
-      </BrowserRouter>
-    </AuthProvider>
   );
 }
