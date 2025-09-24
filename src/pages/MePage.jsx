@@ -6,7 +6,6 @@ import toast from "react-hot-toast";
 export default function MePage() {
   const { user, setUser } = useAuth();
   const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
 
   // Always grab a fresh /me when arriving (populates relations)
   useEffect(() => {
@@ -64,7 +63,7 @@ export default function MePage() {
     setUser((prev) => {
       if (!prev) return prev;
       const nextLearn = (prev.skillsToLearn || []).filter((l) => {
-        const lId   = l?.skillId?._id || String(l?.skillId || ""); // fixed from `skilled`
+        const lId   = l?.skillId?._id || String(l?.skillId || "");
         const lSlug = l?.skillId?.slug;
         return (lSlug || lId) !== key;
       });
@@ -86,18 +85,15 @@ export default function MePage() {
   async function removeTeach(row) {
     if (busy) return;
     setBusy(true);
-    setMsg("");
 
     // optimistic UI first
     optimisticallyRemoveTeach(row);
 
     try {
       await Auth.removeTeach(skillKey(row));     // DELETE /me/teach/:idOrSlug
-      setMsg(`Removed "${row.name}" from teaching.`);
-      toast.success(`Removed "${row.name} from teaching."`)
+      toast.success(`Removed "${row.name}" from teaching.`);
     } catch (error) {
-      setMsg(error?.response?.data?.error || "Failed to remove teaching skill.");
-      toast.error(error?.response?.data?.error || "Failed to remove teaching skill.")
+      toast.error(error?.response?.data?.error || "Failed to remove teaching skill.");
       await safeRefetchMe();                     // rollback via authoritative state
       setBusy(false);
       return;
@@ -110,17 +106,14 @@ export default function MePage() {
   async function removeLearn(row) {
     if (busy) return;
     setBusy(true);
-    setMsg("");
 
     optimisticallyRemoveLearn(row);
 
     try {
       await Auth.removeLearn(skillKey(row));     // DELETE /me/learn/:idOrSlug
-      setMsg(`Removed "${row.name}" from learning.`);
-      toast.success(`Removed "${row.name}" from learning.`)
+      toast.success(`Removed "${row.name}" from learning.`);
     } catch (error) {
-      setMsg(error?.response?.data?.error || "Failed to remove learning skill.");
-      toast.error(error?.response?.data?.error || "Failed to remove learning skill.")
+      toast.error(error?.response?.data?.error || "Failed to remove learning skill.");
       await safeRefetchMe();
       setBusy(false);
       return;
@@ -218,8 +211,6 @@ export default function MePage() {
           )}
         </div>
       </div>
-
-      {/* {!!msg && <div className="success">{msg}</div>} */}
     </div>
   );
 }
