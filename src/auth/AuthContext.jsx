@@ -14,7 +14,6 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [booting, setBooting] = useState(true);
 
-  // 🔹 Callback to refresh user profile
   const refreshUser = useCallback(async () => {
     try {
       const data = await Auth.me();
@@ -24,9 +23,8 @@ export function AuthProvider({ children }) {
     } finally {
       setBooting(false);
     }
-  }, []); // no deps, stable forever
+  }, []);
 
-  // 🔹 Callbacks for auth actions
   const login = useCallback(
     async (payload) => {
       await Auth.login(payload);
@@ -44,21 +42,24 @@ export function AuthProvider({ children }) {
   );
 
   const logout = useCallback(async () => {
-    await Auth.logout();
-    setUser(null);
+    try {
+      await Auth.logout();
+    } finally {
+      setUser(null);            // ✅ ensure UI logs out even if request fails
+      setBooting(false);
+    }
   }, []);
 
-  // 🔹 On mount: setup refresh + unauthenticated handler
   useEffect(() => {
-    refreshUser(); // check if logged in when app loads
+    refreshUser();               // boot the session
     setOnUnauthenticated(() => setUser(null));
     return () => setOnUnauthenticated(null);
   }, [refreshUser]);
 
-  // 🔹 Memoize the context value
   const value = useMemo(
     () => ({
       user,
+      setUser,                  // ✅ expose for optimistic UI flows
       booting,
       login,
       register,
@@ -71,7 +72,6 @@ export function AuthProvider({ children }) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-// Hook for consumers
 // eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const ctx = useContext(AuthContext);

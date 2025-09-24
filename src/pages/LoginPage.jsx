@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useLocation, useNavigate, Link } from "react-router-dom";
+import toast from "react-hot-toast";
+
 
 export default function LoginPage() {
   const { user, login } = useAuth();
@@ -25,6 +27,7 @@ export default function LoginPage() {
       navigate(dest, { replace: true });
     } catch (error) {
       setMsg(error?.response?.data?.error || "Login failed");
+      toast.error(error?.response?.data?.error || "Login failed")
     }
   }
 
@@ -38,22 +41,26 @@ export default function LoginPage() {
         <div className="card-content">
           <form onSubmit={onSubmit} className="grid gap-3">
             <div className="grid gap-1">
-              <label htmlFor="" className="label">
+              <label htmlFor="identifier" className="label">
                 Email or Username
               </label>
               <input
+              id="identifier"
                 type="text"
+                autoComplete="username"
                 className="input"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
               />
             </div>
             <div className="grid gap-1">
-              <label htmlFor="" className="label">
+              <label htmlFor="password" className="label">
                 Password
               </label>
               <input
+              id="password"
                 type="password"
+                autoComplete="password"
                 className="input"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

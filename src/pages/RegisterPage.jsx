@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
+import toast from "react-hot-toast";
 
 export default function RegisterPage() {
     const {user, register} = useAuth()
@@ -20,6 +21,7 @@ export default function RegisterPage() {
             navigate("/me", {replace:true})
         } catch (error) {
             setMsg(error?.response?.data?.error || "Registration failed")
+            toast.error(error?.response?.data?.error || "Registration failed")
         }
     }
 
@@ -31,20 +33,20 @@ export default function RegisterPage() {
             <div className="card-content">
                 <form onSubmit={onSubmit} className="grid gap-3">
                    <div className="grid gap-1">
-                    <label htmlFor="" className="label">Username</label>
-                    <input type="text" className="input" value={form.username} onChange={(e)=>setForm({...form, username:e.target.value})}  />
+                    <label htmlFor="username" className="label">Username</label>
+                    <input id="username" type="text" className="input" value={form.username} onChange={(e)=>setForm({...form, username:e.target.value})}  />
                     </div> 
                    <div className="grid gap-1">
-                    <label htmlFor="" className="label">Email</label>
-                    <input type="email" className="input" value={form.email} onChange={(e)=>setForm({...form, email:e.target.value})}  />
+                    <label htmlFor="email" className="label">Email</label>
+                    <input id="email" type="email" className="input" value={form.email} onChange={(e)=>setForm({...form, email:e.target.value})}  />
                     </div> 
                    <div className="grid gap-1">
-                    <label htmlFor="" className="label">Full Name</label>
-                    <input type="text" className="input" value={form.name} onChange={(e)=>setForm({...form, name:e.target.value})}  />
+                    <label htmlFor="fullname" className="label">Full Name</label>
+                    <input id="fullname" type="text" className="input" value={form.name} onChange={(e)=>setForm({...form, name:e.target.value})}  />
                     </div> 
                    <div className="grid gap-1">
-                    <label htmlFor="" className="label">Password</label>
-                    <input type="password" className="input" value={form.password} onChange={(e)=>setForm({...form, password:e.target.value})}  />
+                    <label htmlFor="password" className="label">Password</label>
+                    <input id="password" type="password" className="input" value={form.password} onChange={(e)=>setForm({...form, password:e.target.value})}  />
                     </div> 
                     <button className="btn-primary">Create account</button>
                     {!!msg && <div className="subtle">{msg}</div>}
