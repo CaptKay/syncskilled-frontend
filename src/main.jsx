@@ -17,7 +17,7 @@ createRoot(document.getElementById("root")).render(
           toastOptions={{
             style: { fontSize: "14px" },
             success: { iconTheme: { primary: "#16a34a", secondary: "#fff" } },
-            error: { iconTheme: { primary: "dc2626", secondary: "#fff" } },
+            error: { iconTheme: { primary: "#dc2626", secondary: "#fff" } },
           }}
         />
       </BrowserRouter>
