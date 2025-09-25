@@ -1,5 +1,4 @@
-// src/pages/CategorySkillsPage.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Catalog, Auth } from "../api";
 import { useAuth } from "../auth/AuthContext";
@@ -7,11 +6,13 @@ import toast from "react-hot-toast";
 
 export default function CategorySkillsPage() {
   const { idOrSlug } = useParams();
-  const { refreshUser } = useAuth();
+  const { refreshUser, user } = useAuth();
 
   const [category, setCategory] = useState(null);
   const [skills, setSkills] = useState([]);
   const [busyKey, setBusyKey] = useState(null); // which skill is acting
+  const [q, setQ] = useState("");               // local filter text
+  const [rates, setRates] = useState({});       // { [skillKey]: number|string }
 
   // Load skills for this category (by id or slug)
   useEffect(() => {
@@ -19,10 +20,17 @@ export default function CategorySkillsPage() {
       try {
         const data = await Catalog.categorySkills(idOrSlug, {
           active: true,
-          limit: 100,
+          limit: 200,
         });
-        setSkills(data.items || data || []);
-        // placeholder until we resolve real name:
+        const list = data.items || data || [];
+        setSkills(list);
+        // prefill rates with defaults
+        const nextRates = {};
+        for (const s of list) {
+          const key = s.slug || s._id;
+          nextRates[key] = s.defaultCreditsPerHour ?? 0;
+        }
+        setRates(nextRates);
         setCategory((prev) => prev ?? { name: "Category", slug: idOrSlug });
       } catch (error) {
         console.error("Failed to load skills.", error);
@@ -31,31 +39,64 @@ export default function CategorySkillsPage() {
     })();
   }, [idOrSlug]);
 
-  // 🔹 Best-effort: fetch all categories, find the one matching idOrSlug, and show its name
+  // Best-effort: fetch category name
   useEffect(() => {
     (async () => {
       try {
         const all = await Catalog.categories({ active: true, limit: 200 });
         const list = all.items || all || [];
-        const found = list.find(
-          (c) => c.slug === idOrSlug || c._id === idOrSlug
-        );
+        const found = list.find((c) => c.slug === idOrSlug || c._id === idOrSlug);
         if (found) setCategory(found);
-      } catch {
-        // ignore; we already have a placeholder
-      }
+      } catch {/* ignore */}
     })();
   }, [idOrSlug]);
 
   const skillKey = (s) => s.slug || s._id;
 
+  // Already added? (soft client-side guard; server is authoritative)
+  const teachSet = useMemo(() => new Set(
+    (user?.skillsToTeach || []).map(t => (t?.skillId?.slug || String(t?.skillId || "")))
+  ), [user]);
+  const learnSet = useMemo(() => new Set(
+    (user?.skillsToLearn || []).map(l => (l?.skillId?.slug || String(l?.skillId || "")))
+  ), [user]);
+
+  // Live filter
+  const filtered = useMemo(() => {
+    const rx = q.trim() ? new RegExp(q.trim(), "i") : null;
+    return rx ? skills.filter(s => rx.test(s.name || "")) : skills;
+  }, [skills, q]);
+
+  function onRateChange(key, value) {
+    // allow empty string to let user clear then type
+    if (value === "") {
+      setRates((r) => ({ ...r, [key]: "" }));
+      return;
+    }
+    const n = Number(value);
+    if (Number.isNaN(n)) return; // ignore non-numerics
+    if (n < 0 || n > 9999) return; // simple clamp rule
+    setRates((r) => ({ ...r, [key]: n }));
+  }
+
   async function addTeach(skill) {
-    if (busyKey) return;
     const key = skillKey(skill);
+    if (busyKey) return;
+    if (teachSet.has(key)) {
+      toast("You already teach this skill.", { icon: "ℹ️" });
+      return;
+    }
+
     setBusyKey(key);
     try {
-      // omit creditsPerHour → backend uses skill.defaultCreditsPerHour
-      await Auth.addTeach({ skill: key });
+      const maybe = rates[key];
+      // Only send creditsPerHour if user typed something different from default
+      const payload =
+        maybe === undefined || maybe === skill.defaultCreditsPerHour
+          ? { skill: key }
+          : { skill: key, creditsPerHour: Number(maybe) };
+
+      await Auth.addTeach(payload);
       toast.success(`Added "${skill.name}" to Teach.`);
       await refreshUser();
     } catch (e) {
@@ -66,8 +107,13 @@ export default function CategorySkillsPage() {
   }
 
   async function addLearn(skill) {
-    if (busyKey) return;
     const key = skillKey(skill);
+    if (busyKey) return;
+    if (learnSet.has(key)) {
+      toast("This skill is already in your Learn list.", { icon: "ℹ️" });
+      return;
+    }
+
     setBusyKey(key);
     try {
       await Auth.addLearn({ skill: key });
@@ -85,42 +131,64 @@ export default function CategorySkillsPage() {
       <div className="card">
         <div className="card-header">
           <h3 className="card-title">{category?.name || "Skills"}</h3>
-          <Link to="/catalog" className="btn-ghost">
-            ← Back
-          </Link>
+          <Link to="/catalog" className="btn-ghost">← Back</Link>
         </div>
 
-        <div className="card-content">
-          {skills.length === 0 ? (
+        <div className="card-content grid gap-4">
+          {/* Search box */}
+          <div className="field-row">
+            <label htmlFor="q" className="label">Search skills</label>
+            <div className="flex items-center gap-2">
+              <input
+                id="q"
+                name="q"
+                type="text"
+                className="input"
+                placeholder="Type to filter…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                autoComplete="off"
+              />
+              {q && (
+                <button className="btn-ghost" onClick={() => setQ("")}>Clear</button>
+              )}
+            </div>
+          </div>
+
+          {filtered.length === 0 ? (
             <div className="subtle">No skills found.</div>
           ) : (
             <ul className="list">
-              {skills.map((s) => {
+              {filtered.map((s) => {
                 const key = skillKey(s);
                 const isBusy = busyKey === key;
+                const current = rates[key] ?? s.defaultCreditsPerHour ?? 0;
                 return (
                   <li key={key} className="row">
                     <div className="row-left">
-                      <div className="avatar">
-                        {(s.name || "?").slice(0, 2).toUpperCase()}
-                      </div>
+                      <div className="avatar">{(s.name || "?").slice(0, 2).toUpperCase()}</div>
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
-                          {s.name}
-                        </div>
-                        <div className="subtle">
-                          Default rate: {s.defaultCreditsPerHour ?? 0} cr/hr
-                        </div>
-                        {s.description && (
-                          <div className="subtle">{s.description}</div>
-                        )}
+                        <div className="text-sm font-medium text-gray-900">{s.name}</div>
+                        {s.description && <div className="subtle">{s.description}</div>}
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
+                      {/* Rate input (optional override for Teach) */}
+                      <label htmlFor={`rate-${key}`} className="label">cr/hr</label>
+                      <input
+                        id={`rate-${key}`}
+                        type="number"
+                        min={0}
+                        max={9999}
+                        className="input w-24"
+                        value={current}
+                        onChange={(e) => onRateChange(key, e.target.value)}
+                        disabled={isBusy}
+                      />
                       <button
                         className="btn-outline"
-                        disabled={!!busyKey}
+                        disabled={isBusy}
                         onClick={() => addTeach(s)}
                         aria-busy={isBusy}
                       >
@@ -128,7 +196,7 @@ export default function CategorySkillsPage() {
                       </button>
                       <button
                         className="btn-primary"
-                        disabled={!!busyKey}
+                        disabled={isBusy}
                         onClick={() => addLearn(s)}
                         aria-busy={isBusy}
                       >
