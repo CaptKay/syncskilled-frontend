@@ -4,6 +4,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { Catalog } from "../api";
 import toast from "react-hot-toast";
 
+//This check typing time
 const DEBOUNCE_MS = 300;
 
 export default function CategoriesPage() {
