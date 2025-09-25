@@ -1,10 +1,14 @@
-import { Routes, Route, Navigate, Link } from "react-router-dom";
+// src/App.jsx
+import { Routes, Route, Navigate, NavLink } from "react-router-dom";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import { useAuth } from "./auth/AuthContext";
+
 import Homepage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import MePage from "./pages/MePage";
+import CategoriesPage from "./pages/CategoriesPage";
+import CategorySkillsPage from "./pages/CategorySkillsPage";
 
 export default function App() {
   const { user, logout } = useAuth();
@@ -12,39 +16,77 @@ export default function App() {
   return (
     <div className="page">
       <div className="container">
-        <div className="card">
-          <div className="card-header">
-            <div className="brabd">SyncSkilled</div>
-            <div className="flex items-center gap-2">
-              <Link to="/" className="btn-outline">
+        {/* Navbar */}
+        <nav className="navbar">
+          <div className="navbar-inner">
+            <div className="brand">SyncSkilled</div>
+            <div className="nav-links">
+              <NavLink
+                to="/"
+                className={({ isActive }) =>
+                  isActive ? "nav-link nav-link-active" : "nav-link"
+                }
+              >
                 Home
-              </Link>
-              {!user ? (
+              </NavLink>
+
+              {user && (
+                <NavLink
+                  to="/catalog"
+                  className={({ isActive }) =>
+                    isActive ? "nav-link nav-link-active" : "nav-link"
+                  }
+                >
+                  Catalog
+                </NavLink>
+              )}
+
+              {user ? (
                 <>
-                  <Link to="/login" className="btn-outline">
-                    Login
-                  </Link>
-                  <Link to="/register" className="btn-outline">
-                    Register
-                  </Link>
-                </>
-              ) : (
-                <>
-                  <Link to="/me" className="btn-outline">
+                  <NavLink
+                    to="/me"
+                    className={({ isActive }) =>
+                      isActive ? "nav-link nav-link-active" : "nav-link"
+                    }
+                  >
                     Profile
-                  </Link>
+                  </NavLink>
                   <button className="btn-primary" onClick={logout}>
                     Logout
                   </button>
                 </>
+              ) : (
+                <>
+                  <NavLink
+                    to="/login"
+                    className={({ isActive }) =>
+                      isActive ? "nav-link nav-link-active" : "nav-link"
+                    }
+                  >
+                    Login
+                  </NavLink>
+                  <NavLink
+                    to="/register"
+                    className={({ isActive }) =>
+                      isActive ? "nav-link nav-link-active" : "nav-link"
+                    }
+                  >
+                    Register
+                  </NavLink>
+                </>
               )}
             </div>
           </div>
-        </div>
+        </nav>
+
+        {/* Routes */}
         <Routes>
+          {/* Public pages */}
           <Route path="/" element={<Homepage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+
+          {/* Protected pages */}
           <Route
             path="/me"
             element={
@@ -53,6 +95,24 @@ export default function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/catalog"
+            element={
+              <ProtectedRoute>
+                <CategoriesPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/catalog/:idOrSlug"
+            element={
+              <ProtectedRoute>
+                <CategorySkillsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fallback */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

@@ -19,6 +19,10 @@
 @utility heading-xl {
   @apply text-3xl md:text-4xl font-extrabold text-gray-900;
 }
+/* ✅ New utility: base styles for nav links */
+@utility navlink {
+  @apply px-3 py-2 rounded-lg text-sm border border-transparent text-gray-700 hover:bg-fuchsia-50;
+}
 
 /* =========================
    LAYOUT / PAGE
@@ -41,6 +45,19 @@
     color: transparent;
   }
   .subtle  { @apply text-sm text-gray-600; }
+}
+
+/* =========================
+   🔎 NAVBAR (NEW)
+   ========================= */
+@layer components {
+  .navbar { @apply rounded-2xl border bg-white/70 backdrop-blur shadow-sm; }
+  .navbar-inner { @apply px-4 py-3 md:px-6 flex items-center justify-between; }
+  .nav-links { @apply flex items-center gap-1 md:gap-2; }
+
+  /* Use the navlink utility so v4 doesn't complain about applying component classes */
+  .nav-link { @apply navlink; }
+  .nav-link-active { @apply navlink bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200; }
 }
 
 /* =========================
