@@ -1,18 +1,24 @@
+// 
+
+
+//==============================================================================================
+
+// src/pages/LoginPage.jsx
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import toast from "react-hot-toast";
 
-
 export default function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [msg, setMsg] = useState("");
 
-  //if already logged in
+  // Redirect if already logged in
   useEffect(() => {
     if (user) navigate("/me", { replace: true });
   }, [user, navigate]);
@@ -20,18 +26,20 @@ export default function LoginPage() {
   async function onSubmit(e) {
     e.preventDefault();
     setMsg("");
+
     try {
       await login({ identifier, password });
-      // if we were redirected here from a protected page, go back there
+      // If redirected from a protected page, go back there
       const dest = location.state?.from?.pathname || "/me";
       navigate(dest, { replace: true });
     } catch (error) {
-      setMsg(error?.response?.data?.error || "Login failed");
-      toast.error(error?.response?.data?.error || "Login failed")
+      const errMsg =
+        error?.response?.data?.error || error?.message || "Login failed";
+      setMsg(errMsg);
+      toast.error(errMsg);
     }
   }
 
-  //check the label for HTMLFOR and input for TYPE, and !!/&&
   return (
     <div className="container">
       <div className="card max-w-sm mx-auto">
@@ -40,12 +48,14 @@ export default function LoginPage() {
         </div>
         <div className="card-content">
           <form onSubmit={onSubmit} className="grid gap-3">
+            {/* Identifier */}
             <div className="grid gap-1">
               <label htmlFor="identifier" className="label">
                 Email or Username
               </label>
               <input
-              id="identifier"
+                id="identifier"
+                name="identifier"
                 type="text"
                 autoComplete="username"
                 className="input"
@@ -53,22 +63,30 @@ export default function LoginPage() {
                 onChange={(e) => setIdentifier(e.target.value)}
               />
             </div>
+
+            {/* Password */}
             <div className="grid gap-1">
               <label htmlFor="password" className="label">
                 Password
               </label>
               <input
-              id="password"
+                id="password"
+                name="password"
                 type="password"
-                autoComplete="password"
+                autoComplete="current-password"
                 className="input"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
-            <button className="btn-primary">Login</button>
-            {!!msg && <div className="subtle">{msg}</div>}
+
+            <button type="submit" className="btn-primary">
+              Login
+            </button>
+
+            {!!msg && <div className="error">{msg}</div>}
           </form>
+
           <div className="subtle mt-2">
             No account?{" "}
             <Link to="/register" className="link">
