@@ -1,9 +1,3 @@
-// 
-
-
-//==============================================================================================
-
-// src/pages/LoginPage.jsx
 import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import { useLocation, useNavigate, Link } from "react-router-dom";
