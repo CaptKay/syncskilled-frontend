@@ -59,8 +59,8 @@ export function AuthProvider({ children }) {
   const value = useMemo(
     () => ({
       user,
-      setUser,                  // ✅ expose for optimistic UI flows
       booting,
+      setUser,                  // ✅ expose for optimistic UI flows
       login,
       register,
       logout,
