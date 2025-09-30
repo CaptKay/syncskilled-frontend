@@ -11,8 +11,8 @@ export default function CategorySkillsPage() {
   const [category, setCategory] = useState(null);
   const [skills, setSkills] = useState([]);
   const [busyKey, setBusyKey] = useState(null); // which skill is acting
-  const [q, setQ] = useState("");               // local filter text
-  const [rates, setRates] = useState({});       // { [skillKey]: number|string }
+  const [q, setQ] = useState(""); // local filter text
+  const [rates, setRates] = useState({}); // { [skillKey]: number|string }
 
   // Load skills for this category (by id or slug)
   useEffect(() => {
@@ -45,26 +45,42 @@ export default function CategorySkillsPage() {
       try {
         const all = await Catalog.categories({ active: true, limit: 200 });
         const list = all.items || all || [];
-        const found = list.find((c) => c.slug === idOrSlug || c._id === idOrSlug);
+        const found = list.find(
+          (c) => c.slug === idOrSlug || c._id === idOrSlug
+        );
         if (found) setCategory(found);
-      } catch {/* ignore */}
+      } catch {
+        /* ignore */
+      }
     })();
   }, [idOrSlug]);
 
   const skillKey = (s) => s.slug || s._id;
 
   // Already added? (soft client-side guard; server is authoritative)
-  const teachSet = useMemo(() => new Set(
-    (user?.skillsToTeach || []).map(t => (t?.skillId?.slug || String(t?.skillId || "")))
-  ), [user]);
-  const learnSet = useMemo(() => new Set(
-    (user?.skillsToLearn || []).map(l => (l?.skillId?.slug || String(l?.skillId || "")))
-  ), [user]);
+  const teachSet = useMemo(
+    () =>
+      new Set(
+        (user?.skillsToTeach || []).map(
+          (t) => t?.skillId?.slug || String(t?.skillId || "")
+        )
+      ),
+    [user]
+  );
+  const learnSet = useMemo(
+    () =>
+      new Set(
+        (user?.skillsToLearn || []).map(
+          (l) => l?.skillId?.slug || String(l?.skillId || "")
+        )
+      ),
+    [user]
+  );
 
   // Live filter
   const filtered = useMemo(() => {
     const rx = q.trim() ? new RegExp(q.trim(), "i") : null;
-    return rx ? skills.filter(s => rx.test(s.name || "")) : skills;
+    return rx ? skills.filter((s) => rx.test(s.name || "")) : skills;
   }, [skills, q]);
 
   function onRateChange(key, value) {
@@ -131,13 +147,17 @@ export default function CategorySkillsPage() {
       <div className="card">
         <div className="card-header">
           <h3 className="card-title">{category?.name || "Skills"}</h3>
-          <Link to="/catalog" className="btn-ghost">← Back</Link>
+          <Link to="/catalog" className="btn-ghost">
+            ← Back
+          </Link>
         </div>
 
         <div className="card-content grid gap-4">
           {/* Search box */}
           <div className="field-row">
-            <label htmlFor="q" className="label">Search skills</label>
+            <label htmlFor="q" className="label">
+              Search skills
+            </label>
             <div className="flex items-center gap-2">
               <input
                 id="q"
@@ -150,7 +170,9 @@ export default function CategorySkillsPage() {
                 autoComplete="off"
               />
               {q && (
-                <button className="btn-ghost" onClick={() => setQ("")}>Clear</button>
+                <button className="btn-ghost" onClick={() => setQ("")}>
+                  Clear
+                </button>
               )}
             </div>
           </div>
@@ -166,16 +188,24 @@ export default function CategorySkillsPage() {
                 return (
                   <li key={key} className="row">
                     <div className="row-left">
-                      <div className="avatar">{(s.name || "?").slice(0, 2).toUpperCase()}</div>
+                      <div className="avatar">
+                        {(s.name || "?").slice(0, 2).toUpperCase()}
+                      </div>
                       <div>
-                        <div className="text-sm font-medium text-gray-900">{s.name}</div>
-                        {s.description && <div className="subtle">{s.description}</div>}
+                        <div className="text-sm font-medium text-gray-900">
+                          {s.name}
+                        </div>
+                        {s.description && (
+                          <div className="subtle">{s.description}</div>
+                        )}
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2">
                       {/* Rate input (optional override for Teach) */}
-                      <label htmlFor={`rate-${key}`} className="label">cr/hr</label>
+                      <label htmlFor={`rate-${key}`} className="label">
+                        cr/hr
+                      </label>
                       <input
                         id={`rate-${key}`}
                         type="number"
