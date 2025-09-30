@@ -1,35 +1,27 @@
-// src/pages/CategoriesPage.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Catalog } from "../api";
 import toast from "react-hot-toast";
+import { makeSafeRx } from "../utils/strings"; // 👈 use your helper
 
-//This check typing time
 const DEBOUNCE_MS = 300;
 
 export default function CategoriesPage() {
   const [params, setParams] = useSearchParams();
   const [items, setItems] = useState([]);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(false); //loading
   const [error, setError] = useState("");
   const qParam = params.get("q") ?? "";
 
-  // local controlled input tied to ?q=…
   const [q, setQ] = useState(qParam);
-  useEffect(() => {
-    // keep input in sync if user navigates back/forward
-    setQ(qParam);
-  }, [qParam]);
+  useEffect(() => { setQ(qParam); }, [qParam]);
 
-  // fetch with debounce + abort when qParam changes
   const abortRef = useRef(null);
   useEffect(() => {
     setBusy(true);
     setError("");
 
-    // debounce timer
     const t = setTimeout(async () => {
-      // cancel previous request, if any
       if (abortRef.current) abortRef.current.abort();
       const ac = new AbortController();
       abortRef.current = ac;
@@ -37,7 +29,7 @@ export default function CategoriesPage() {
       try {
         const data = await Catalog.categories(
           { q: qParam || undefined, active: true, limit: 100 },
-          { signal: ac.signal } // (api wrapper ignores extra config; this is future-proof)
+          { signal: ac.signal } // ok if wrapper ignores it
         );
         setItems(data.items || data || []);
       } catch (e) {
@@ -50,13 +42,9 @@ export default function CategoriesPage() {
       }
     }, DEBOUNCE_MS);
 
-    return () => {
-      clearTimeout(t);
-      // don’t abort here—only abort when new request starts
-    };
+    return () => clearTimeout(t);
   }, [qParam]);
 
-  // live update URL param as user types
   function onChange(e) {
     const next = e.target.value;
     setQ(next);
@@ -73,11 +61,12 @@ export default function CategoriesPage() {
     setParams(sp, { replace: true });
   }
 
+  // 👇 SAFE filtering (no crash on special chars)
   const filtered = useMemo(() => {
-    // server already filters by q; this is a tiny client-side guard
     if (!qParam) return items;
-    const rx = new RegExp(qParam, "i");
-    return items.filter((c) => rx.test(c.name || ""));
+    const rx = makeSafeRx(qParam);
+    if (!rx) return items;
+    return items.filter((c) => rx.test(c?.name || ""));
   }, [items, qParam]);
 
   return (
@@ -91,14 +80,9 @@ export default function CategoriesPage() {
             <label htmlFor="q" className="label">Search</label>
             <div className="flex items-center gap-2">
               <input
-                id="q"
-                name="q"
-                type="text"
-                className="input"
-                placeholder="Search categories..."
-                value={q}
-                onChange={onChange}
-                autoComplete="off"
+                id="q" name="q" type="text" className="input"
+                placeholder="Search categories..." value={q}
+                onChange={onChange} autoComplete="off"
               />
               {q && (
                 <button className="btn-ghost" onClick={onClear} aria-label="Clear search">

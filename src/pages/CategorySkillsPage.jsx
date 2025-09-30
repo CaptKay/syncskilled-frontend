@@ -3,6 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { Catalog, Auth } from "../api";
 import { useAuth } from "../auth/AuthContext";
 import toast from "react-hot-toast";
+import { makeSafeRx } from "../utils/strings"; // 👈 use your helper
 
 export default function CategorySkillsPage() {
   const { idOrSlug } = useParams();
@@ -10,26 +11,18 @@ export default function CategorySkillsPage() {
 
   const [category, setCategory] = useState(null);
   const [skills, setSkills] = useState([]);
-  const [busyKey, setBusyKey] = useState(null); // which skill is acting
-  const [q, setQ] = useState(""); // local filter text
-  const [rates, setRates] = useState({}); // { [skillKey]: number|string }
+  const [busyKey, setBusyKey] = useState(null);
+  const [q, setQ] = useState("");
+  const [rates, setRates] = useState({});
 
-  // Load skills for this category (by id or slug)
   useEffect(() => {
     (async () => {
       try {
-        const data = await Catalog.categorySkills(idOrSlug, {
-          active: true,
-          limit: 200,
-        });
+        const data = await Catalog.categorySkills(idOrSlug, { active: true, limit: 100 });
         const list = data.items || data || [];
         setSkills(list);
-        // prefill rates with defaults
         const nextRates = {};
-        for (const s of list) {
-          const key = s.slug || s._id;
-          nextRates[key] = s.defaultCreditsPerHour ?? 0;
-        }
+        for (const s of list) nextRates[s.slug || s._id] = s.defaultCreditsPerHour ?? 0;
         setRates(nextRates);
         setCategory((prev) => prev ?? { name: "Category", slug: idOrSlug });
       } catch (error) {
@@ -39,79 +32,61 @@ export default function CategorySkillsPage() {
     })();
   }, [idOrSlug]);
 
-  // Best-effort: fetch category name
   useEffect(() => {
     (async () => {
       try {
-        const all = await Catalog.categories({ active: true, limit: 200 });
+        const all = await Catalog.categories({ active: true, limit: 100 });
         const list = all.items || all || [];
         const found = list.find(
           (c) => c.slug === idOrSlug || c._id === idOrSlug
         );
         if (found) setCategory(found);
-      } catch {
-        /* ignore */
+      } catch (error) {
+        console.error("Failed to load category.", error);
+        toast.error("Failed to load category.");
       }
     })();
   }, [idOrSlug]);
 
   const skillKey = (s) => s.slug || s._id;
 
-  // Already added? (soft client-side guard; server is authoritative)
   const teachSet = useMemo(
-    () =>
-      new Set(
-        (user?.skillsToTeach || []).map(
-          (t) => t?.skillId?.slug || String(t?.skillId || "")
-        )
-      ),
+    () => new Set((user?.skillsToTeach || []).map((t) => t?.skillId?.slug || String(t?.skillId || ""))),
     [user]
   );
   const learnSet = useMemo(
-    () =>
-      new Set(
-        (user?.skillsToLearn || []).map(
-          (l) => l?.skillId?.slug || String(l?.skillId || "")
-        )
-      ),
+    () => new Set((user?.skillsToLearn || []).map((l) => l?.skillId?.slug || String(l?.skillId || ""))),
     [user]
   );
 
-  // Live filter
+  // 👇 SAFE filter (no crash on special chars)
   const filtered = useMemo(() => {
-    const rx = q.trim() ? new RegExp(q.trim(), "i") : null;
-    return rx ? skills.filter((s) => rx.test(s.name || "")) : skills;
+    const t = q.trim();
+    if (!t) return skills;
+    const rx = makeSafeRx(t);
+    if (!rx) return skills;
+    return skills.filter((s) => rx.test(s?.name || ""));
   }, [skills, q]);
 
   function onRateChange(key, value) {
-    // allow empty string to let user clear then type
-    if (value === "") {
-      setRates((r) => ({ ...r, [key]: "" }));
-      return;
-    }
+    if (value === "") { setRates((r) => ({ ...r, [key]: "" })); return; }
     const n = Number(value);
-    if (Number.isNaN(n)) return; // ignore non-numerics
-    if (n < 0 || n > 9999) return; // simple clamp rule
+    if (Number.isNaN(n) || n < 0 || n > 9999) return;
     setRates((r) => ({ ...r, [key]: n }));
   }
 
   async function addTeach(skill) {
     const key = skillKey(skill);
     if (busyKey) return;
-    if (teachSet.has(key)) {
-      toast("You already teach this skill.", { icon: "ℹ️" });
-      return;
-    }
+    if (teachSet.has(key)) return toast("You already teach this skill.", { icon: "ℹ️" });
 
     setBusyKey(key);
     try {
-      const maybe = rates[key];
-      // Only send creditsPerHour if user typed something different from default
+      const credit = rates[key];
       const payload =
-        maybe === undefined || maybe === skill.defaultCreditsPerHour
+        credit === undefined || credit === skill.defaultCreditsPerHour
           ? { skill: key }
-          : { skill: key, creditsPerHour: Number(maybe) };
-
+          : { skill: key, creditsPerHour: Number(credit) };
       await Auth.addTeach(payload);
       toast.success(`Added "${skill.name}" to Teach.`);
       await refreshUser();
@@ -125,10 +100,7 @@ export default function CategorySkillsPage() {
   async function addLearn(skill) {
     const key = skillKey(skill);
     if (busyKey) return;
-    if (learnSet.has(key)) {
-      toast("This skill is already in your Learn list.", { icon: "ℹ️" });
-      return;
-    }
+    if (learnSet.has(key)) return toast("This skill is already in your Learn list.", { icon: "ℹ️" });
 
     setBusyKey(key);
     try {
@@ -153,27 +125,17 @@ export default function CategorySkillsPage() {
         </div>
 
         <div className="card-content grid gap-4">
-          {/* Search box */}
           <div className="field-row">
             <label htmlFor="q" className="label">
               Search skills
             </label>
             <div className="flex items-center gap-2">
               <input
-                id="q"
-                name="q"
-                type="text"
-                className="input"
-                placeholder="Type to filter…"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                autoComplete="off"
+                id="q" name="q" type="text" className="input"
+                placeholder="Type to filter…" value={q}
+                onChange={(e) => setQ(e.target.value)} autoComplete="off"
               />
-              {q && (
-                <button className="btn-ghost" onClick={() => setQ("")}>
-                  Clear
-                </button>
-              )}
+              {q && <button className="btn-ghost" onClick={() => setQ("")}>Clear</button>}
             </div>
           </div>
 
@@ -202,34 +164,17 @@ export default function CategorySkillsPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      {/* Rate input (optional override for Teach) */}
-                      <label htmlFor={`rate-${key}`} className="label">
-                        cr/hr
-                      </label>
+                      <label htmlFor={`rate-${key}`} className="label">cr/hr</label>
                       <input
-                        id={`rate-${key}`}
-                        type="number"
-                        min={0}
-                        max={9999}
-                        className="input w-24"
-                        value={current}
+                        id={`rate-${key}`} type="number" min={0} max={9999}
+                        className="input w-24" value={current}
                         onChange={(e) => onRateChange(key, e.target.value)}
                         disabled={isBusy}
                       />
-                      <button
-                        className="btn-outline"
-                        disabled={isBusy}
-                        onClick={() => addTeach(s)}
-                        aria-busy={isBusy}
-                      >
+                      <button className="btn-outline" disabled={isBusy} onClick={() => addTeach(s)} aria-busy={isBusy}>
                         Teach
                       </button>
-                      <button
-                        className="btn-primary"
-                        disabled={isBusy}
-                        onClick={() => addLearn(s)}
-                        aria-busy={isBusy}
-                      >
+                      <button className="btn-primary" disabled={isBusy} onClick={() => addLearn(s)} aria-busy={isBusy}>
                         Learn
                       </button>
                     </div>

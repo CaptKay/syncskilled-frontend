@@ -5,7 +5,11 @@ import toast from "react-hot-toast";
 
 export default function MePage() {
   const { user, setUser } = useAuth();
-  const [busy, setBusy] = useState(false);
+
+  // busy flags
+  const [busy, setBusy] = useState(false);   // for list remove actions
+  const [pBusy, setPBusy] = useState(false); // save profile
+  const [pwBusy, setPwBusy] = useState(false); // change password
 
   // Always grab a fresh /me when arriving (populates relations)
   useEffect(() => {
@@ -19,7 +23,83 @@ export default function MePage() {
     })();
   }, [setUser]);
 
-  // Normalize teach/learn arrays to a UI-friendly shape
+  // --------- Profile form state (seeded from user) ----------
+  const [form, setForm] = useState({
+    name: user?.name || "",
+    username: user?.username || "",
+    email: user?.email || "",
+    bio: user?.bio || "",
+    profilePhoto: user?.profilePhoto || "",
+    location: user?.location || "",
+  });
+
+  useEffect(() => {
+    // Keep form synced when user changes (e.g., after /me refresh)
+    setForm({
+      name: user?.name || "",
+      username: user?.username || "",
+      email: user?.email || "",
+      bio: user?.bio || "",
+      profilePhoto: user?.profilePhoto || "",
+      location: user?.location || "",
+    });
+  }, [user]);
+
+  function onChange(e) {
+    const { name, value } = e.target;
+    setForm((f) => ({ ...f, [name]: value }));
+  }
+
+  async function onSaveProfile(e) {
+    e.preventDefault();
+    if (pBusy) return;
+    setPBusy(true);
+    try {
+      // send only fields that make sense; backend trims/validates
+      const payload = {
+        ...(form.name && { name: form.name }),
+        ...(form.username && { username: form.username }),
+        ...(form.email && { email: form.email }),
+        ...(form.bio !== undefined && { bio: form.bio }),
+        ...(form.profilePhoto && { profilePhoto: form.profilePhoto }),
+        ...(form.location && { location: form.location }),
+      };
+      const { user: updated } = await Auth.updateProfile(payload);
+      toast.success(`${updated} Profile updated`);
+
+      // Fetch authoritative /me (ensures populated relations + server state)
+      const fresh = await Auth.me();
+      setUser(fresh.user);
+    } catch (e) {
+      toast.error(e?.response?.data?.error || "Failed to update profile");
+    } finally {
+      setPBusy(false);
+    }
+  }
+
+  async function onChangePassword(e) {
+    e.preventDefault();
+    if (pwBusy) return;
+    const fd = new FormData(e.currentTarget);
+    const oldPassword = String(fd.get("oldPassword") || "");
+    const newPassword = String(fd.get("newPassword") || "");
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters");
+      return;
+    }
+    setPwBusy(true);
+    try {
+      await Auth.changePassword({ oldPassword, newPassword });
+      e.currentTarget.reset();
+      toast.success("Password changed");
+    } catch (e) {
+      toast.error(e?.response?.data?.error || "Failed to change password");
+    } finally {
+      setPwBusy(false);
+    }
+  }
+
+  // --------- Normalize teach/learn arrays to UI shape ----------
   const teach = useMemo(() => {
     return (user?.skillsToTeach || []).map((t) => ({
       id: t?.skillId?._id || String(t?.skillId || ""),
@@ -50,7 +130,7 @@ export default function MePage() {
     setUser((prev) => {
       if (!prev) return prev;
       const nextTeach = (prev.skillsToTeach || []).filter((t) => {
-        const tId   = t?.skillId?._id || String(t?.skillId || "");
+        const tId = t?.skillId?._id || String(t?.skillId || "");
         const tSlug = t?.skillId?.slug;
         return (tSlug || tId) !== key;
       });
@@ -63,7 +143,7 @@ export default function MePage() {
     setUser((prev) => {
       if (!prev) return prev;
       const nextLearn = (prev.skillsToLearn || []).filter((l) => {
-        const lId   = l?.skillId?._id || String(l?.skillId || "");
+        const lId = l?.skillId?._id || String(l?.skillId || "");
         const lSlug = l?.skillId?.slug;
         return (lSlug || lId) !== key;
       });
@@ -81,25 +161,24 @@ export default function MePage() {
     }
   }
 
-  // ---- Event handlers ----
+  // ---- Event handlers (remove teach/learn) ----
   async function removeTeach(row) {
     if (busy) return;
     setBusy(true);
 
-    // optimistic UI first
-    optimisticallyRemoveTeach(row);
+    optimisticallyRemoveTeach(row); //Removes from the state
 
     try {
-      await Auth.removeTeach(skillKey(row));     // DELETE /me/teach/:idOrSlug
+      await Auth.removeTeach(skillKey(row)); // DELETE /me/teach/:idOrSlug - from Database
       toast.success(`Removed "${row.name}" from teaching.`);
     } catch (error) {
       toast.error(error?.response?.data?.error || "Failed to remove teaching skill.");
-      await safeRefetchMe();                     // rollback via authoritative state
+      await safeRefetchMe(); // rollback state
       setBusy(false);
       return;
     }
 
-    await safeRefetchMe();                       // soft sync (don’t fail UX on error)
+    await safeRefetchMe(); //fetch from the database 
     setBusy(false);
   }
 
@@ -110,7 +189,7 @@ export default function MePage() {
     optimisticallyRemoveLearn(row);
 
     try {
-      await Auth.removeLearn(skillKey(row));     // DELETE /me/learn/:idOrSlug
+      await Auth.removeLearn(skillKey(row)); // DELETE /me/learn/:idOrSlug
       toast.success(`Removed "${row.name}" from learning.`);
     } catch (error) {
       toast.error(error?.response?.data?.error || "Failed to remove learning skill.");
@@ -209,6 +288,86 @@ export default function MePage() {
               ))}
             </ul>
           )}
+        </div>
+      </div>
+
+      {/* Edit Profile */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Edit Profile</h3>
+        </div>
+        <div className="card-content">
+          <form className="form" onSubmit={onSaveProfile}>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="field-row">
+                <label htmlFor="name" className="label">Name</label>
+                <input id="name" name="name" type="text" className="input"
+                       value={form.name} onChange={onChange} />
+              </div>
+
+              <div className="field-row">
+                <label htmlFor="username" className="label">Username</label>
+                <input id="username" name="username" type="text" className="input"
+                       value={form.username} onChange={onChange} />
+              </div>
+
+              <div className="field-row">
+                <label htmlFor="email" className="label">Email</label>
+                <input id="email" name="email" type="email" className="input"
+                       value={form.email} onChange={onChange} />
+              </div>
+
+              <div className="field-row">
+                <label htmlFor="location" className="label">Location</label>
+                <input id="location" name="location" type="text" className="input"
+                       value={form.location} onChange={onChange} />
+              </div>
+
+              <div className="field-row md:col-span-2">
+                <label htmlFor="profilePhoto" className="label">Profile photo URL</label>
+                <input id="profilePhoto" name="profilePhoto" type="url" className="input"
+                       value={form.profilePhoto} onChange={onChange} />
+              </div>
+
+              <div className="field-row md:col-span-2">
+                <label htmlFor="bio" className="label">Bio</label>
+                <textarea id="bio" name="bio" rows={3} className="input"
+                          value={form.bio} onChange={onChange} />
+              </div>
+            </div>
+
+            <div>
+              <button className="btn-primary" disabled={pBusy}>
+                {pBusy ? "Saving…" : "Save changes"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {/* Change Password */}
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Change Password</h3>
+        </div>
+        <div className="card-content">
+          <form className="form" onSubmit={onChangePassword}>
+            <div className="grid md:grid-cols-2 gap-3">
+              <div className="field-row">
+                <label htmlFor="oldPassword" className="label">Current password</label>
+                <input id="oldPassword" name="oldPassword" type="password" className="input" />
+              </div>
+              <div className="field-row">
+                <label htmlFor="newPassword" className="label">New password</label>
+                <input id="newPassword" name="newPassword" type="password" className="input" />
+              </div>
+            </div>
+            <div>
+              <button className="btn-outline" disabled={pwBusy}>
+                {pwBusy ? "Changing…" : "Change password"}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
