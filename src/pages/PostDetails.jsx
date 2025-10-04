@@ -1,11 +1,15 @@
 // src/pages/PostDetails.jsx
 import { useEffect, useState } from "react";
 import { usePosts } from "../context/PostContext";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 
 export default function PostDetails() {
   const { postId } = useParams();
-  const { getSinglePost, getCommentsByPost } = usePosts();
+  const { getSinglePost, getCommentsByPost, deletePost } = usePosts();
+  const { user } = useAuth(); // access current user
+  const navigate = useNavigate();
+
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +31,7 @@ export default function PostDetails() {
         if (!postData) throw new Error("Post not found");
         setPost(postData);
 
-        // Fetch comments (safe fallback to empty array)
+        // Fetch comments
         const postComments = await getCommentsByPost(postId);
         setComments(Array.isArray(postComments) ? postComments : []);
       } catch (err) {
@@ -44,6 +48,22 @@ export default function PostDetails() {
   if (error) return <p style={{ color: "red" }}>{error}</p>;
   if (!post) return <p>Post not found</p>;
 
+  // Handler for deleting the post
+  const handleDelete = async () => {
+    if (window.confirm("Are you sure you want to delete this post?")) {
+      try {
+        await deletePost(postId);
+        // After deletion, redirect to the list of all posts
+        navigate("/posts");
+      } catch (err) {
+        setError(err.message || "Error deleting post");
+      }
+    }
+  };
+
+  // Check if current user is the author of this post
+  const isAuthor = user && post.author && user._id === post.author._id;
+
   return (
     <div
       style={{
@@ -59,7 +79,6 @@ export default function PostDetails() {
         <strong>Author:</strong> {post.author?.username || "Unknown"}
       </p>
       <p>{post.description || "No description provided."}</p>
-
       <p>
         <strong>Skill To Learn:</strong> {post.skillToLearn?.name || "-"}
       </p>
@@ -88,6 +107,39 @@ export default function PostDetails() {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Render Edit and Delete buttons only if the current user is the author */}
+      {isAuthor && (
+        <div style={{ marginTop: "20px" }}>
+          <button
+            onClick={() => navigate(`/posts/${postId}/edit`)}
+            style={{
+              marginRight: "10px",
+              padding: "8px 16px",
+              cursor: "pointer",
+              backgroundColor: "#007bff",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+            }}
+          >
+            Edit Post
+          </button>
+          <button
+            onClick={handleDelete}
+            style={{
+              padding: "8px 16px",
+              cursor: "pointer",
+              backgroundColor: "#dc3545",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+            }}
+          >
+            Delete Post
+          </button>
+        </div>
       )}
     </div>
   );
