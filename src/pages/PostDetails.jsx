@@ -1,11 +1,14 @@
 // src/pages/PostDetails.jsx
 import { useEffect, useState } from "react";
 import { usePosts } from "../context/PostContext";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
+import { useAuth } from "../auth/AuthContext";
 
 export default function PostDetails() {
   const { postId } = useParams();
-  const { getSinglePost, getCommentsByPost } = usePosts();
+  const navigate = useNavigate();
+  const { currentUser } = useAuth();
+  const { getSinglePost, getCommentsByPost, deletePost } = usePosts();
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +42,15 @@ export default function PostDetails() {
 
     fetchPost();
   }, [postId, getSinglePost, getCommentsByPost]);
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure you want to delete this post?")) return;
+    try {
+      await deletePost(post._id);
+      navigate("/posts");
+    } catch (err) {
+      alert(err.message || "Error deleting post");
+    }
+  };
 
   if (loading) return <p>Loading post...</p>;
   if (error) return <p style={{ color: "red" }}>{error}</p>;
@@ -59,7 +71,6 @@ export default function PostDetails() {
         <strong>Author:</strong> {post.author?.username || "Unknown"}
       </p>
       <p>{post.description || "No description provided."}</p>
-
       <p>
         <strong>Skill To Learn:</strong> {post.skillToLearn?.name || "-"}
       </p>
@@ -88,6 +99,45 @@ export default function PostDetails() {
             </li>
           ))}
         </ul>
+      )}
+
+      {/* Show Update & Delete buttons if user is author */}
+      {isAuthor && (
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "10px",
+            marginTop: "20px",
+          }}
+        >
+          <button
+            onClick={() => navigate(`/posts/${post._id}/edit`)}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#007bff",
+              color: "white",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+            }}
+          >
+            Update
+          </button>
+          <button
+            onClick={handleDelete}
+            style={{
+              padding: "8px 16px",
+              backgroundColor: "#dc3545",
+              color: "white",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+            }}
+          >
+            Delete
+          </button>
+        </div>
       )}
     </div>
   );
