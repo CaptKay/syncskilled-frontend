@@ -9,6 +9,7 @@ import RegisterPage from "./pages/RegisterPage";
 import MePage from "./pages/MePage";
 import CategoriesPage from "./pages/CategoriesPage";
 import CategorySkillsPage from "./pages/CategorySkillsPage";
+import LandingPage from "./pages/LandingPage";
 
 export default function App() {
   const { user, logout } = useAuth();
@@ -82,7 +83,8 @@ export default function App() {
         {/* Routes */}
         <Routes>
           {/* Public pages */}
-          <Route path="/" element={<Homepage />} />
+          {/* <Route path="/" element={<Homepage />} /> */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
