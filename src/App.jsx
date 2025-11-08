@@ -1,5 +1,6 @@
 // src/App.jsx
 import { Routes, Route, Navigate, NavLink } from "react-router-dom";
+import { Fragment } from "react";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import { useAuth } from "./auth/AuthContext";
 
@@ -22,71 +23,91 @@ export default function App() {
         {/* Navbar */}
         <nav className="navbar">
           <div className="navbar-inner">
-            <div className="brand">SyncSkilled</div>
-            <div className="nav-links">
-              <NavLink
-                to="/"
-                className={({ isActive }) =>
-                  isActive ? "nav-link nav-link-active" : "nav-link"
-                }
-              >
-                Home
-              </NavLink>
-              <NavLink
-                to="posts"
-                className={({ isActive }) =>
-                  isActive ? "nav-link nav-link-active" : "nav-link"
-                }
-              >
-                {" "}
-                Posts
-              </NavLink>
+            <div className="flex flex-col gap-1">
+              <span className="brand">SyncSkilled</span>
+              <span className="text-xs uppercase tracking-[0.35em] text-slate-500">
+                Learn • Share • Grow
+              </span>
+            </div>
 
-              {user && (
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between md:flex-1 md:pl-8">
+              <div className="nav-links">
                 <NavLink
-                  to="/catalog"
+                  to="/"
+                  className={({ isActive }) =>
+                    isActive ? "nav-link nav-link-active" : "nav-link"
+                  }
+                  end
+                >
+                  Home
+                </NavLink>
+                <NavLink
+                  to="/posts"
                   className={({ isActive }) =>
                     isActive ? "nav-link nav-link-active" : "nav-link"
                   }
                 >
-                  Catalog
+                  Posts
                 </NavLink>
-              )}
 
-              {user ? (
-                <>
+                {user && (
                   <NavLink
-                    to="/me"
+                    to="/catalog"
                     className={({ isActive }) =>
                       isActive ? "nav-link nav-link-active" : "nav-link"
                     }
                   >
-                    Profile
+                    Catalog
                   </NavLink>
-                  <button className="btn-primary" onClick={logout}>
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <>
-                  <NavLink
-                    to="/login"
-                    className={({ isActive }) =>
-                      isActive ? "nav-link nav-link-active" : "nav-link"
-                    }
-                  >
-                    Login
-                  </NavLink>
-                  <NavLink
-                    to="/register"
-                    className={({ isActive }) =>
-                      isActive ? "nav-link nav-link-active" : "nav-link"
-                    }
-                  >
-                    Register
-                  </NavLink>
-                </>
-              )}
+                )}
+              </div>
+
+              <div className="nav-cta">
+                {user ? (
+                  <Fragment>
+                    <NavLink
+                      to="/posts/create"
+                      className={({ isActive }) =>
+                        isActive
+                          ? "btn-primary"
+                          : "btn-outline"
+                      }
+                    >
+                      New Post
+                    </NavLink>
+                    <NavLink
+                      to="/me"
+                      className={({ isActive }) =>
+                        isActive ? "nav-link nav-link-active" : "nav-link"
+                      }
+                    >
+                      Profile
+                    </NavLink>
+                    <button className="btn-muted" onClick={logout}>
+                      Logout
+                    </button>
+                  </Fragment>
+                ) : (
+                  <Fragment>
+                    <NavLink
+                      to="/login"
+                      className={({ isActive }) =>
+                        isActive ? "nav-link nav-link-active" : "nav-link"
+                      }
+                    >
+                      Login
+                    </NavLink>
+                    <NavLink
+                      to="/register"
+                      className={({ isActive }) =>
+                        isActive ? "btn-primary" : "btn-outline"
+                      }
+                    >
+                      Join now
+                    </NavLink>
+                  </Fragment>
+                )}
+              </div>
             </div>
           </div>
         </nav>

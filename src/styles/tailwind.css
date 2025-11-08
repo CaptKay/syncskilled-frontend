@@ -4,24 +4,29 @@
    BASE UTILITIES (safe to @apply)
    ========================= */
 @utility card {
-  @apply rounded-2xl border bg-white/80 backdrop-blur p-5 shadow-sm;
+  @apply rounded-3xl border border-white/40 bg-white/80 backdrop-blur-xl p-6 shadow-[0_20px_60px_-25px_rgba(15,23,42,0.25)];
 }
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium
-         transition active:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2;
+  @apply inline-flex items-center justify-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold tracking-wide
+         transition-all duration-200 active:translate-y-[1px] disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white;
 }
 @utility input-base {
-  @apply w-full px-3 py-2 rounded-lg border text-sm bg-white/90 outline-none focus:ring-2 focus:ring-fuchsia-400;
+  @apply w-full px-4 py-3 rounded-2xl border border-slate-200 text-sm bg-white/90 outline-none focus:ring-4 focus:ring-fuchsia-200 focus:border-fuchsia-400;
 }
 @utility heading {
-  @apply text-xl font-semibold text-gray-900;
+  @apply text-2xl font-semibold text-slate-900;
 }
 @utility heading-xl {
-  @apply text-3xl md:text-4xl font-extrabold text-gray-900;
+  @apply text-4xl md:text-5xl font-black tracking-tight text-slate-900;
 }
-/* ✅ New utility: base styles for nav links */
 @utility navlink {
-  @apply px-3 py-2 rounded-lg text-sm border border-transparent text-gray-700 hover:bg-fuchsia-50;
+  @apply px-3 py-2 rounded-full text-sm font-medium border border-transparent text-slate-600 hover:text-slate-900 hover:border-white/60 hover:bg-white/60;
+}
+@utility section-title {
+  @apply text-sm font-semibold uppercase tracking-[0.3em] text-fuchsia-600;
+}
+@utility surface-soft {
+  @apply rounded-2xl border border-white/30 bg-white/60 backdrop-blur;
 }
 
 /* =========================
@@ -29,54 +34,121 @@
    ========================= */
 @layer components {
   .page {
-    @apply min-h-dvh;
-    background:
-      radial-gradient(1200px 600px at 0% 0%, #fff1f2 0%, transparent 60%),
-      radial-gradient(1000px 600px at 100% 0%, #e0f2fe 0%, transparent 60%),
-      radial-gradient(1000px 800px at 100% 100%, #f0fdf4 0%, transparent 60%),
-      linear-gradient(180deg, #fff, #fff);
+    @apply min-h-dvh relative overflow-hidden bg-gradient-to-br from-slate-50 via-white to-emerald-50 text-slate-800;
   }
-  .container { @apply max-w-5xl mx-auto p-5 md:p-8 grid gap-8; }
+  .page::before,
+  .page::after {
+    content: "";
+    position: absolute;
+    inset: auto;
+    width: 720px;
+    height: 720px;
+    border-radius: 50%;
+    filter: blur(160px);
+    opacity: 0.35;
+    z-index: 0;
+  }
+  .page::before {
+    top: -240px;
+    left: -200px;
+    background: radial-gradient(circle at top, #f5d0fe, transparent 70%);
+  }
+  .page::after {
+    bottom: -260px;
+    right: -120px;
+    background: radial-gradient(circle at bottom, #bae6fd, transparent 75%);
+  }
+  .container { @apply relative z-10 max-w-6xl mx-auto px-6 md:px-10 py-8 md:py-10 grid gap-10; }
   .brand {
-    @apply text-2xl md:text-3xl font-extrabold tracking-tight;
-    background: linear-gradient(90deg, #a21caf, #2563eb, #16a34a);
+    @apply text-2xl md:text-3xl font-black tracking-tight;
+    background: linear-gradient(120deg, #a21caf, #2563eb, #059669, #f97316);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
   }
-  .subtle  { @apply text-sm text-gray-600; }
+  .subtle  { @apply text-sm text-slate-600; }
 }
 
 /* =========================
-   🔎 NAVBAR (NEW)
+   NAVBAR
    ========================= */
 @layer components {
-  .navbar { @apply rounded-2xl border bg-white/70 backdrop-blur shadow-sm; }
-  .navbar-inner { @apply px-4 py-3 md:px-6 flex items-center justify-between; }
-  .nav-links { @apply flex items-center gap-1 md:gap-2; }
+  .navbar { @apply surface-soft shadow-[0_18px_46px_-30px_rgba(15,23,42,0.55)]; }
+  .navbar-inner { @apply px-4 md:px-6 py-4 flex flex-wrap items-center justify-between gap-4; }
+  .nav-links { @apply flex items-center gap-2 flex-wrap; }
+  .nav-cta { @apply flex items-center gap-2; }
 
-  /* Use the navlink utility so v4 doesn't complain about applying component classes */
   .nav-link { @apply navlink; }
-  .nav-link-active { @apply navlink bg-fuchsia-100 text-fuchsia-900 border-fuchsia-200; }
+  .nav-link-active { @apply navlink bg-white/80 border-white/70 text-fuchsia-700 shadow-sm; }
 }
 
 /* =========================
-   CARDS
+   HERO / SECTIONS
    ========================= */
 @layer components {
-  .card        { @apply card; }                /* uses utility */
-  .card-header { @apply mb-3 flex items-center justify-between; }
-  .card-title  { @apply heading; }             /* uses utility */
-  .card-content{ @apply grid gap-3; }
+  .hero {
+    @apply surface-soft relative overflow-hidden grid gap-8 p-8 md:p-12 lg:p-16;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: auto;
+    top: -120px;
+    right: -160px;
+    width: 420px;
+    height: 420px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(217,70,239,0.25), transparent 70%);
+    filter: blur(0px);
+    z-index: 0;
+  }
+  .hero::after {
+    content: "";
+    position: absolute;
+    bottom: -200px;
+    left: -120px;
+    width: 420px;
+    height: 420px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(59,130,246,0.22), transparent 70%);
+    z-index: 0;
+  }
+  .hero-inner { @apply relative z-10 grid gap-10 lg:grid-cols-[minmax(0,1fr)_380px] items-center; }
+  .hero-copy { @apply grid gap-6 text-balance; }
+  .hero-actions { @apply flex flex-wrap items-center gap-3; }
+  .stats-grid { @apply grid gap-3 sm:grid-cols-3; }
+  .stat-card { @apply surface-soft px-5 py-4 text-center; }
+  .stat-value { @apply text-3xl font-black text-slate-900; }
+  .stat-label { @apply text-xs uppercase tracking-[0.25em] text-slate-500; }
+
+  .feature-grid { @apply grid gap-4 md:grid-cols-3; }
+  .feature-card { @apply surface-soft p-6 grid gap-3; }
+  .feature-icon { @apply inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-fuchsia-500 to-purple-600 text-white text-xl shadow-lg; }
+  .feature-title { @apply text-lg font-semibold text-slate-900; }
+  .feature-copy { @apply text-sm text-slate-600 leading-relaxed; }
+}
+
+/* =========================
+   CARDS / PANELS
+   ========================= */
+@layer components {
+  .card        { @apply card; }
+  .card-header { @apply mb-4 flex items-center justify-between; }
+  .card-title  { @apply heading; }
+  .card-content{ @apply grid gap-4; }
+  .section-card { @apply surface-soft p-8 grid gap-6; }
 }
 
 /* =========================
    BUTTONS & LINKS
    ========================= */
 @layer components {
-  .btn-primary { @apply btn bg-fuchsia-600 text-white border-fuchsia-600 hover:bg-fuchsia-700 focus:ring-fuchsia-400; }
-  .btn-ghost   { @apply btn border-transparent text-gray-700 hover:bg-fuchsia-50 focus:ring-fuchsia-200; }
-  .btn-outline { @apply btn border-fuchsia-300 text-fuchsia-800 hover:bg-fuchsia-50 focus:ring-fuchsia-200; }
+  .btn-primary {
+    @apply btn border-transparent bg-gradient-to-r from-fuchsia-600 via-purple-600 to-sky-500 text-white shadow-lg shadow-fuchsia-500/30 hover:shadow-fuchsia-500/40 hover:brightness-105 focus:ring-fuchsia-300;
+  }
+  .btn-ghost   { @apply btn border-transparent text-slate-600 hover:text-fuchsia-700 hover:bg-white/70 focus:ring-fuchsia-200; }
+  .btn-outline { @apply btn border-fuchsia-200 text-fuchsia-700 hover:bg-fuchsia-50 focus:ring-fuchsia-200; }
+  .btn-muted   { @apply btn border-slate-200 text-slate-500 bg-white/70 hover:border-slate-300 hover:text-slate-700; }
   .link        { @apply text-fuchsia-700 hover:text-fuchsia-900 underline underline-offset-2; }
 }
 
@@ -84,22 +156,75 @@
    FORMS
    ========================= */
 @layer components {
-  .input { @apply input-base; }                /* uses utility */
-  .label { @apply text-sm font-medium text-gray-700; }
-  .form  { @apply grid gap-3; }
-  .field-row { @apply grid gap-1; }
+  .input { @apply input-base; }
+  .textarea { @apply input-base min-h-[140px] resize-y; }
+  .label { @apply text-sm font-semibold text-slate-700; }
+  .form  { @apply grid gap-4; }
+  .field-row { @apply grid gap-2; }
+  .form-actions { @apply flex flex-wrap items-center justify-end gap-3; }
 }
 
 /* =========================
    LISTS / ROWS / BADGES
    ========================= */
 @layer components {
-  .list     { @apply grid gap-2; }
-  .row      { @apply flex items-center justify-between gap-3 rounded-xl border bg-white/70 px-3 py-2 hover:bg-white; }
+  .list     { @apply grid gap-3; }
+  .row      { @apply flex items-center justify-between gap-3 rounded-2xl border border-white/50 bg-white/70 px-4 py-3 hover:bg-white shadow-sm transition; }
   .row-left { @apply flex items-center gap-3; }
-  .avatar   { @apply grid place-items-center w-8 h-8 rounded-full bg-fuchsia-100 text-fuchsia-800 text-xs font-semibold; }
+  .avatar   { @apply grid place-items-center w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-200 to-sky-200 text-fuchsia-900 text-sm font-bold; }
 
-  .badge      { @apply inline-flex items-center gap-2 px-2 py-1 text-xs rounded-full bg-fuchsia-50 text-fuchsia-800 border border-fuchsia-200; }
-  .badge-soft { @apply inline-flex items-center gap-2 px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-700 border border-gray-200; }
-  .pill       { @apply inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200; }
+  .badge        { @apply inline-flex items-center gap-2 px-3 py-1 text-xs font-semibold uppercase tracking-widest rounded-full bg-fuchsia-100 text-fuchsia-700 border border-fuchsia-200; }
+  .badge-soft   { @apply inline-flex items-center gap-2 px-3 py-1 text-xs rounded-full bg-slate-100 text-slate-600 border border-slate-200; }
+  .pill         { @apply inline-flex items-center gap-2 px-3 py-1 text-xs rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200 font-semibold; }
+  .status-active {
+    @apply inline-flex items-center gap-2 px-3 py-1 text-xs font-semibold uppercase tracking-widest rounded-full border;
+    @apply bg-emerald-100 text-emerald-600 border-emerald-200;
+  }
+  .status-archived {
+    @apply inline-flex items-center gap-2 px-3 py-1 text-xs font-semibold uppercase tracking-widest rounded-full border;
+    @apply bg-slate-200 text-slate-600 border-slate-300;
+  }
+  .meta-grid { @apply grid gap-2 sm:grid-cols-2; }
+  .meta-item { @apply surface-soft px-4 py-3 rounded-2xl; }
+  .meta-label { @apply text-xs uppercase tracking-[0.25em] text-slate-500; }
+  .meta-value { @apply text-sm font-semibold text-slate-800; }
+  .comment-list { @apply grid gap-3; }
+  .comment-card { @apply surface-soft p-4 rounded-2xl grid gap-2; }
+}
+
+/* =========================
+   POST GRIDS
+   ========================= */
+@layer components {
+  .post-header { @apply flex flex-wrap items-start justify-between gap-4; }
+  .post-grid { @apply grid gap-4 md:grid-cols-2 xl:grid-cols-3; }
+  .post-card { @apply surface-soft relative overflow-hidden p-6 grid gap-4 transition hover:-translate-y-1 hover:shadow-xl; }
+  .post-card::after {
+    content: "";
+    position: absolute;
+    inset: auto;
+    right: -80px;
+    bottom: -120px;
+    width: 220px;
+    height: 220px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(244,114,182,0.22), transparent 70%);
+    z-index: 0;
+  }
+  .post-card > * { @apply relative z-10; }
+  .post-title { @apply text-xl font-semibold text-slate-900; }
+  .post-preview { @apply text-sm text-slate-600 leading-relaxed line-clamp-3; }
+  .post-footer { @apply flex flex-wrap items-center justify-between gap-3; }
+  .avatar-ring { @apply relative h-12 w-12 rounded-2xl overflow-hidden border-4 border-white shadow-lg; }
+  .avatar-ring img { @apply h-full w-full object-cover; }
+}
+
+/* =========================
+   MISC
+   ========================= */
+@layer components {
+  .empty-state { @apply surface-soft p-12 text-center grid gap-4; }
+  .empty-title { @apply text-xl font-semibold text-slate-900; }
+  .empty-copy { @apply text-sm text-slate-600; }
+  .divider { @apply h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent; }
 }
